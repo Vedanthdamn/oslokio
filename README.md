@@ -38,10 +38,13 @@ Existing datasets were evaluated first. TrojAI's image rounds use large ImageNet
 Every number below is the mean ± std over **10 random splits**, not a single split. This matters: an earlier single-split run of this same pipeline reported 0.994 in-distribution AUC, which repeated evaluation showed to be 0.959 ± 0.009 — the rest was split luck.
 
 Two controls guard the results:
-- **Shuffled-label control**: training labels permuted; AUC 0.514 ± 0.062, i.e. chance. No hidden leakage.
+- **Shuffled-label control**: training labels permuted before fitting. AUC 0.566 ± 0.063 for raw-scale features and 0.514 ± 0.062 for normalized ones — near chance in both cases, so nothing is leaking a label. The raw-scale figure sits slightly high and is revisited under Limitations.
 - **Architecture-identifying features dropped** for the architecture holdout. `n_conv_layers` takes a value in the test set that never appears in training, so leaving it in makes the tree split on an unseen value.
 
 ## Results
+
+All results below use raw-scale features, which the ablations show to be the strongest
+representation on every axis except cross-family transfer.
 
 ### Generalizing to an unseen attack family
 
@@ -49,11 +52,11 @@ The core test: hold out one entire trigger family, train on the other three, det
 
 | Held-out family | AUC | Balanced accuracy |
 |---|---|---|
-| sinusoidal | 0.980 ± 0.005 | 0.930 ± 0.008 |
-| blended | 0.979 ± 0.005 | 0.927 ± 0.018 |
-| corner_patch | 0.916 ± 0.018 | 0.818 ± 0.022 |
-| checkerboard | 0.887 ± 0.018 | 0.742 ± 0.012 |
-| *in-distribution reference* | *0.959 ± 0.009* | *0.890 ± 0.015* |
+| sinusoidal | 0.991 ± 0.003 | 0.945 |
+| blended | 0.984 ± 0.004 | 0.928 |
+| corner_patch | 0.927 ± 0.018 | 0.795 |
+| checkerboard | 0.896 ± 0.015 | 0.714 |
+| *in-distribution reference* | *0.969 ± 0.012* | *0.909* |
 
 Detection transfers to attack families never seen in training — for two of them, better than the in-distribution baseline. Whatever the detector keys on is not specific to a trigger's appearance.
 
@@ -63,16 +66,18 @@ Training on a single family and testing on another (AUC, 10 seeds):
 
 | trained on ↓ / tested on → | blended | checkerboard | corner_patch | sinusoidal |
 |---|---|---|---|---|
-| **blended** | 0.989 | 0.764 | 0.815 | 0.989 |
-| **checkerboard** | 0.855 | 0.910 | 0.813 | 0.855 |
-| **corner_patch** | 0.936 | 0.878 | 0.957 | 0.935 |
-| **sinusoidal** | 0.986 | 0.748 | 0.823 | 0.990 |
+| **blended** | 0.988 | 0.610 | 0.715 | 0.978 |
+| **checkerboard** | 0.817 | 0.934 | 0.822 | 0.858 |
+| **corner_patch** | 0.938 | 0.885 | 0.954 | 0.953 |
+| **sinusoidal** | 0.990 | 0.752 | 0.822 | 0.993 |
 
-Same-family mean 0.961, cross-family mean 0.866, gap 0.095.
+Same-family mean 0.967, cross-family mean 0.845, gap 0.122.
 
-The structure is not arbitrary. `blended` and `sinusoidal` — the two *global* perturbations — transfer to each other almost perfectly (0.989 / 0.986) while transferring worst to `checkerboard` (0.764 / 0.748), which is *local*. Feature-importance analysis agrees independently: blended and sinusoidal share **6 of their top 10** features, while every other pair shares only 1–2. **The weight-space signature clusters by whether a trigger is spatially local or global, not by how it looks.**
+The structure is not arbitrary. `blended` and `sinusoidal` — the two *global* perturbations — transfer to each other almost perfectly (0.978 / 0.990) while transferring worst to `checkerboard` (0.610 / 0.752), which is *local*. Feature-importance analysis agrees independently: blended and sinusoidal share **6 of their top 10** features, while every other pair shares only 1–2. **The weight-space signature clusters by whether a trigger is spatially local or global, not by how it looks.**
 
-`corner_patch` is the most useful single family to train on (0.916 mean transfer to the others) — a practical note for anyone assembling a training population on a budget.
+The same ordering appears under normalized features (gap 0.095), so the conclusion does not depend on the representation.
+
+`corner_patch` is the most useful single family to train on (0.925 mean transfer to the others) — a practical note for anyone assembling a training population on a budget.
 
 ### Generalizing to an unseen architecture
 
@@ -116,7 +121,7 @@ The dominant signal is the *stable rank* (effective rank of the singular value s
 
 | Axis | Normalized | Depth-invariant | Raw scale |
 |---|---|---|---|
-| in-distribution | 0.959 ± 0.009 | 0.960 ± 0.012 | 0.969 ± 0.012 |
+| in-distribution | 0.959 ± 0.009 | 0.960 ± 0.012 | **0.969 ± 0.012** |
 | held-out family (blended) | 0.979 ± 0.005 | 0.981 ± 0.004 | 0.984 ± 0.004 |
 | held-out depth 4 | 0.759 ± 0.034 | 0.826 ± 0.019 | **0.886 ± 0.019** |
 
