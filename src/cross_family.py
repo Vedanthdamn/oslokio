@@ -10,6 +10,9 @@ from sklearn.model_selection import train_test_split
 
 from src.evaluation import feature_columns
 
+# below this many models on either side the estimate is not meaningful
+MIN_POSITIVES = 12
+
 
 def _matrix(df, cols):
     X = df[cols].to_numpy(dtype=np.float64)
@@ -30,6 +33,11 @@ def transfer_auc(df, cols, train_family, test_family, seed):
         # split the family so train and test positives stay disjoint
         train_pos, test_pos = train_test_split(train_pos, test_size=0.35, random_state=seed)
 
+    # too few positives and the learner degenerates to a constant prediction, which
+    # scores exactly 0.5 -- indistinguishable in a table from a genuine chance result.
+    if len(train_pos) < MIN_POSITIVES or len(test_pos) < MIN_POSITIVES:
+        return float("nan")
+
     train_df = pd.concat([clean_train, train_pos])
     test_df = pd.concat([clean_test, test_pos])
 
@@ -38,7 +46,10 @@ def transfer_auc(df, cols, train_family, test_family, seed):
 
     model = HistGradientBoostingClassifier(random_state=seed)
     model.fit(X_tr, y_tr)
-    return roc_auc_score(y_te, model.predict_proba(X_te)[:, 1])
+    probs = model.predict_proba(X_te)[:, 1]
+    if np.unique(probs).size == 1:
+        return float("nan")
+    return roc_auc_score(y_te, probs)
 
 
 def main(features_csv: str, out_path: Path, n_seeds: int):
@@ -57,16 +68,18 @@ def main(features_csv: str, out_path: Path, n_seeds: int):
     for i, train_family in enumerate(families):
         for j, test_family in enumerate(families):
             scores = [transfer_auc(df, cols, train_family, test_family, s) for s in range(n_seeds)]
-            grid[i, j], spread[i, j] = np.mean(scores), np.std(scores)
+            grid[i, j], spread[i, j] = np.nanmean(scores), np.nanstd(scores)
 
     header = "".join(f"{f[:11]:>13s}" for f in families)
     print(f"{'trained on':>15s}{header}")
     for i, train_family in enumerate(families):
-        row = "".join(f"{grid[i, j]:>8.3f}±{spread[i, j]:<4.2f}" for j in range(len(families)))
+        row = "".join("     n/a     " if np.isnan(grid[i, j])
+                      else f"{grid[i, j]:>8.3f}±{spread[i, j]:<4.2f}" for j in range(len(families)))
         print(f"{train_family:>15s}{row}")
 
-    diag = float(np.mean(np.diag(grid)))
-    off = float((grid.sum() - np.trace(grid)) / (grid.size - len(families)))
+    mask = ~np.eye(len(families), dtype=bool)
+    diag = float(np.nanmean(np.diag(grid)))
+    off = float(np.nanmean(grid[mask]))
     print(f"\nsame-family mean AUC:  {diag:.3f}")
     print(f"cross-family mean AUC: {off:.3f}")
     print(f"generalization gap:    {diag - off:.3f}")

@@ -17,7 +17,12 @@ EXTRACTORS = {
 def build_feature_matrix(models_dir: Path, extractor: str = "absolute") -> pd.DataFrame:
     extract = EXTRACTORS[extractor]
     rows = []
-    model_dirs = sorted(p for p in models_dir.iterdir() if p.is_dir())
+    # a directory mid-write has weights but no metadata yet; skipping those makes this
+    # safe to run against a population that is still being generated.
+    model_dirs = sorted(
+        p for p in models_dir.iterdir()
+        if p.is_dir() and (p / "metadata.json").exists() and (p / "weights.pt").exists()
+    )
 
     for model_dir in tqdm(model_dirs, desc=f"extracting features ({extractor})"):
         metadata = json.load(open(model_dir / "metadata.json"))
