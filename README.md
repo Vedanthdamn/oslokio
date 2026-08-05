@@ -91,7 +91,7 @@ This is the harder axis, and it is asymmetric:
 
 Holding out depth 2 or 3 is interpolation (training sees both shallower and deeper); holding out depth 4 is extrapolation, and is consistently hardest.
 
-**Ranking transfers; thresholds do not.** At depth 4 the detector ranks well (AUC 0.876) but a naive 0.5 cut detects only **7.4%** of backdoored models — it calls almost everything clean, because the score distribution shifts on an unfamiliar architecture.
+**Ranking transfers; thresholds do not.** At depth 4 the detector still ranks well, but a naive 0.5 cut detects only **7.4%** of backdoored models — it calls almost everything clean, because the score distribution shifts on an unfamiliar architecture. (The calibration experiment below reports AUC 0.876 ± 0.018 rather than 0.886: it trains on the full non-depth-4 pool with a 90% bootstrap and no validation split, so the numbers are close but not identical.)
 
 ### Fixing the threshold with clean reference models only
 
@@ -158,3 +158,7 @@ MODELS=data/models_v2 OUT=data/results ./run_experiments.sh
 ```
 
 Generated data is gitignored — regenerate locally rather than pulling it from the repo.
+
+Developed and tested on Python 3.13 with torch 2.13, torch_geometric 2.8, scikit-learn 1.9,
+pandas 3.0 and numpy 2.5, on Apple silicon (MPS). Training falls back to CUDA or CPU
+automatically; `--device cpu` forces CPU for the GNN.
