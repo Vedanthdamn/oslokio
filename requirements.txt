@@ -2,3 +2,5 @@ torch
 torchvision
 numpy
 tqdm
+pandas
+scikit-learn
