@@ -29,7 +29,7 @@ Existing datasets were evaluated first. TrojAI's image rounds use large ImageNet
 
 **Weight representation, track (a) — statistical/spectral.** Per-layer weight statistics (mean, std, skew, kurtosis, sparsity) and spectral features (singular value spectrum, stable rank, spectral entropy) taken from the first conv layer, last conv layer, pooled conv layers, and both FC layers. Fixed-length regardless of depth.
 
-**Weight representation, track (b) — graph + GNN.** Each model becomes a graph: channels/neurons are nodes, weights are edges (a conv kernel becomes a 9-dim edge feature; the conv→FC flatten is bridged with per-channel spatial summaries). A GINE network processes it in PyTorch Geometric. The readout deliberately avoids max pooling — node count scales with architecture (≈220 nodes at 2 conv layers vs ≈480 at 4), so a max over nodes leaks architecture identity. Mean and attention pooling are both weighted averages and stay size-invariant.
+**Weight representation, track (b) — graph + GNN.** Each model becomes a graph: channels/neurons are nodes, weights are edges (a conv kernel becomes a 9-dim edge feature; the conv→FC flatten is bridged with per-channel spatial summaries). A GINE network processes it in PyTorch Geometric. The readout avoids max pooling — node count scales with architecture (≈220 nodes at 2 conv layers vs ≈480 at 4), so a max over nodes leaks architecture identity; mean and attention pooling are weighted averages and stay size-invariant. This track underperforms track (a) on every axis measured — see results below.
 
 **Meta-classifier.** Gradient-boosted trees on track (a) features; the GNN trained end-to-end for track (b). All splits are at the *model* level.
 
@@ -106,6 +106,21 @@ An auditor facing a new architecture can rarely obtain known-*backdoored* exampl
 
 Roughly 20–40 known-clean models of the target architecture turn an unusable detector into a working screening tool, with no backdoored examples of that architecture required. More reference models mainly buy *stability* — the spread on detection rate falls from ±0.15 at k=5 to ±0.06 at k=20.
 
+### Track (a) vs track (b): the graph model loses
+
+Both representations on identical splits (the GNN at 2 seeds — it costs orders of magnitude more compute per run — so its error bars are thin):
+
+| Axis | (a) Trees on weight statistics | (b) GINE on the weight graph |
+|---|---|---|
+| held-out family (blended) | **0.984 ± 0.004** | 0.915 ± 0.042 |
+| held-out architecture (depth 4) | **0.886 ± 0.019** | 0.481 ± 0.001 |
+
+The graph track was the more research-interesting one — neurons as nodes, weights as edges, message passing that respects permutation symmetry by construction. It loses on both axes.
+
+On unseen attack families it is merely worse and much less stable (individual seeds 0.958 and 0.873). On unseen architectures it fails outright: 0.481 is chance, and a balanced accuracy of exactly 0.500 means it assigns every model to one class. The two seeds agree to within 0.002, so this is systematic rather than noisy — the learned graph embedding appears dominated by architecture rather than by backdoor structure.
+
+Worth being precise about what the size-invariant readout did and did not do. Replacing max pooling removed a measurable leak (node count runs ≈220 at 2 conv layers versus ≈480 at 4, so a max over nodes grows with depth). It did not produce architecture generalization. Removing a confound you can name is not the same as solving the problem.
+
 ### What the detector actually keys on
 
 | Feature | Importance | Direction |
@@ -139,6 +154,8 @@ There is a real trade-off: normalization slightly *helps* cross-family transfer 
 - The architecture holdout varies depth and width within one family of simple CNNs; transfer to a genuinely different family (residual, attention) is unmeasured.
 - No external validation against an independently generated population such as TrojAI or TDC.
 - The shuffled-label control sits slightly above chance for raw-scale features (0.566 ± 0.063); worth watching if that representation is developed further.
+- GNN results use 2 seeds against 10 for the feature track, so its error bars are much weaker. Its architecture-holdout failure is stark enough (0.481, both seeds within 0.002) that more seeds are unlikely to change the conclusion, but the family-holdout figure of 0.915 ± 0.042 deserves more runs before being quoted firmly.
+- Why the GNN embedding is dominated by architecture is unresolved. Candidates worth testing: conditioning the readout on depth, a contrastive objective that pulls same-label/different-architecture models together, or edge features that are relative rather than absolute.
 
 ## Running it
 
