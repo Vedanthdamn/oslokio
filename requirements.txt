@@ -1,6 +1,7 @@
 torch
 torchvision
+torch_geometric
 numpy
-tqdm
 pandas
 scikit-learn
+tqdm
