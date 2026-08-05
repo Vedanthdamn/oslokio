@@ -3,6 +3,8 @@ import re
 import numpy as np
 import torch
 
+from src.weight_norm import normalize_layer
+
 
 def _basic_stats(values: np.ndarray, prefix: str) -> dict:
     values = values.astype(np.float64)
@@ -53,32 +55,38 @@ def _get_conv_layers(state_dict: dict):
 
 
 def extract_features(state_dict: dict) -> dict:
-    conv_layers = _get_conv_layers(state_dict)
+    # each layer's weights/biases are normalized to unit std before any stats are
+    # computed, so features reflect distribution shape rather than depth-correlated
+    # init scale (deeper layers have systematically smaller fan-in-scaled weights).
+    conv_layers = [
+        (normalize_layer(w.numpy()), normalize_layer(b.numpy()))
+        for w, b in _get_conv_layers(state_dict)
+    ]
     features = {"n_conv_layers": float(len(conv_layers))}
 
-    all_conv_weights = np.concatenate([w.numpy().ravel() for w, _ in conv_layers])
-    all_conv_biases = np.concatenate([b.numpy().ravel() for _, b in conv_layers])
+    all_conv_weights = np.concatenate([w.ravel() for w, _ in conv_layers])
+    all_conv_biases = np.concatenate([b.ravel() for _, b in conv_layers])
     features.update(_basic_stats(all_conv_weights, "conv_all_w"))
     features.update(_basic_stats(all_conv_biases, "conv_all_b"))
 
     first_w, first_b = conv_layers[0]
-    features.update(_basic_stats(first_w.numpy().ravel(), "conv_first_w"))
-    features.update(_basic_stats(first_b.numpy().ravel(), "conv_first_b"))
-    features.update(_spectral_stats(first_w.numpy(), "conv_first_w"))
+    features.update(_basic_stats(first_w.ravel(), "conv_first_w"))
+    features.update(_basic_stats(first_b.ravel(), "conv_first_b"))
+    features.update(_spectral_stats(first_w, "conv_first_w"))
 
     last_w, last_b = conv_layers[-1]
-    features.update(_basic_stats(last_w.numpy().ravel(), "conv_last_w"))
-    features.update(_basic_stats(last_b.numpy().ravel(), "conv_last_b"))
-    features.update(_spectral_stats(last_w.numpy(), "conv_last_w"))
+    features.update(_basic_stats(last_w.ravel(), "conv_last_w"))
+    features.update(_basic_stats(last_b.ravel(), "conv_last_b"))
+    features.update(_spectral_stats(last_w, "conv_last_w"))
 
-    fc1_w = state_dict["fc1.weight"].numpy()
-    fc1_b = state_dict["fc1.bias"].numpy()
+    fc1_w = normalize_layer(state_dict["fc1.weight"].numpy())
+    fc1_b = normalize_layer(state_dict["fc1.bias"].numpy())
     features.update(_basic_stats(fc1_w.ravel(), "fc1_w"))
     features.update(_basic_stats(fc1_b.ravel(), "fc1_b"))
     features.update(_spectral_stats(fc1_w, "fc1_w"))
 
-    fc2_w = state_dict["fc2.weight"].numpy()
-    fc2_b = state_dict["fc2.bias"].numpy()
+    fc2_w = normalize_layer(state_dict["fc2.weight"].numpy())
+    fc2_b = normalize_layer(state_dict["fc2.bias"].numpy())
     features.update(_basic_stats(fc2_w.ravel(), "fc2_w"))
     features.update(_basic_stats(fc2_b.ravel(), "fc2_b"))
     features.update(_spectral_stats(fc2_w, "fc2_w"))

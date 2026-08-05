@@ -4,23 +4,26 @@ import numpy as np
 import torch
 from torch_geometric.data import Data
 
+from src.weight_norm import normalize_layer
+
 EDGE_DIM = 9
 NODE_FEAT_DIM = 5  # bias + one-hot layer type (input, conv, fc1, fc2)
-
-# raw weight/bias magnitudes are tiny (typically 0.02-0.25 std), which starves
-# the network of gradient signal; rescale into a more typical operating range.
-FEATURE_SCALE = 10.0
 
 LAYER_INPUT, LAYER_CONV, LAYER_FC1, LAYER_FC2 = range(4)
 
 
 def _get_conv_layers(state_dict: dict):
+    """Returns each conv layer's weight/bias normalized to unit std, removing
+    depth/fan-in-correlated scale differences before they become edge/node features."""
     indices = sorted(
         int(m.group(1))
         for k in state_dict
         if (m := re.match(r"conv\.(\d+)\.weight", k))
     )
-    return [(state_dict[f"conv.{i}.weight"].numpy(), state_dict[f"conv.{i}.bias"].numpy()) for i in indices]
+    return [
+        (normalize_layer(state_dict[f"conv.{i}.weight"].numpy()), normalize_layer(state_dict[f"conv.{i}.bias"].numpy()))
+        for i in indices
+    ]
 
 
 def _pad_edge_feats(feats: np.ndarray) -> np.ndarray:
@@ -35,15 +38,15 @@ def _pad_edge_feats(feats: np.ndarray) -> np.ndarray:
 def _node_feature(bias: float, layer_type: int) -> list:
     onehot = [0.0, 0.0, 0.0, 0.0]
     onehot[layer_type] = 1.0
-    return [float(bias) * FEATURE_SCALE] + onehot
+    return [float(bias)] + onehot
 
 
 def build_graph(state_dict: dict) -> Data:
     conv_layers = _get_conv_layers(state_dict)
-    fc1_w = state_dict["fc1.weight"].numpy()
-    fc1_b = state_dict["fc1.bias"].numpy()
-    fc2_w = state_dict["fc2.weight"].numpy()
-    fc2_b = state_dict["fc2.bias"].numpy()
+    fc1_w = normalize_layer(state_dict["fc1.weight"].numpy())
+    fc1_b = normalize_layer(state_dict["fc1.bias"].numpy())
+    fc2_w = normalize_layer(state_dict["fc2.weight"].numpy())
+    fc2_b = normalize_layer(state_dict["fc2.bias"].numpy())
 
     node_features = [_node_feature(0.0, LAYER_INPUT)]
     layer_offsets = {"input": 0}
@@ -111,7 +114,7 @@ def build_graph(state_dict: dict) -> Data:
 
     src = np.concatenate(edge_srcs)
     dst = np.concatenate(edge_dsts)
-    feats = np.concatenate(edge_feats, axis=0) * FEATURE_SCALE
+    feats = np.concatenate(edge_feats, axis=0)
 
     # make undirected so information can flow both ways during message passing
     edge_index = np.stack([np.concatenate([src, dst]), np.concatenate([dst, src])])
