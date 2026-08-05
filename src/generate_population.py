@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from src.models import sample_architecture_config
 from src.train import get_device, train_model
-from src.triggers import sample_trigger_config
+from src.triggers import FAMILIES, sample_trigger_config
 
 
 def load_mnist(root: str):
@@ -31,13 +31,19 @@ def generate_population(n_models: int, out_dir: Path, mnist_root: str, epochs: i
     train_images, train_labels, test_images, test_labels = load_mnist(mnist_root)
     device = get_device()
 
-    labels = ["clean"] * (n_models // 2) + ["backdoored"] * (n_models - n_models // 2)
-    rng.shuffle(labels)
+    n_clean = n_models // 2
+    n_backdoored = n_models - n_clean
+    # round-robin the families so each is equally represented; a whole family is later
+    # held out as an unseen attack type, and thin families would make that test noisy.
+    families = [FAMILIES[i % len(FAMILIES)] for i in range(n_backdoored)]
+    rng.shuffle(families)
+    plan = [("clean", None)] * n_clean + [("backdoored", f) for f in families]
+    rng.shuffle(plan)
 
-    for i, kind in enumerate(tqdm(labels, desc="training population")):
+    for i, (kind, family) in enumerate(tqdm(plan, desc="training population")):
         model_seed = rng.randrange(2 ** 31)
         arch_config = sample_architecture_config(rng)
-        trigger_config = sample_trigger_config(rng) if kind == "backdoored" else None
+        trigger_config = sample_trigger_config(rng, family=family) if kind == "backdoored" else None
 
         model, clean_acc, backdoor_success = train_model(
             arch_config,
@@ -73,7 +79,7 @@ if __name__ == "__main__":
     parser.add_argument("--n-models", type=int, default=400)
     parser.add_argument("--out-dir", type=str, default="data/models")
     parser.add_argument("--mnist-root", type=str, default="data/mnist")
-    parser.add_argument("--epochs", type=int, default=5)
+    parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
