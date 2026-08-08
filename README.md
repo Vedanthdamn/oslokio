@@ -164,14 +164,14 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 
 # generate the population (~4 h on an M-series laptop)
-.venv/bin/python -m src.generate_population --n-models 800 --out-dir data/models_v2 --epochs 3
+.venv/bin/python -m src.generate_population --n-models 800 --out-dir data/models --epochs 3
 
 # every experiment in this README
-MODELS=data/models_v2 OUT=data/results ./run_experiments.sh
+MODELS=data/models OUT=data/results ./run_experiments.sh
 
 # graph/GNN track
 .venv/bin/python -m src.train_gnn --features-csv data/results/features.csv \
-    --models-dir data/models_v2 --axis family --held-out blended
+    --models-dir data/models --axis family --held-out blended
 ```
 
 Generated data is gitignored — regenerate locally rather than pulling it from the repo.
@@ -179,3 +179,7 @@ Generated data is gitignored — regenerate locally rather than pulling it from 
 Developed and tested on Python 3.13 with torch 2.13, torch_geometric 2.8, scikit-learn 1.9,
 pandas 3.0 and numpy 2.5, on Apple silicon (MPS). Training falls back to CUDA or CPU
 automatically; `--device cpu` forces CPU for the GNN.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -101,10 +101,10 @@ def run(features_csv: str, depth: int, n_seeds: int, out_path: Path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--features-csv", type=str, default="data/features.csv")
+    parser.add_argument("--features-csv", type=str, default="data/results/features.csv")
     parser.add_argument("--depth", type=int, default=4)
     parser.add_argument("--n-seeds", type=int, default=20)
-    parser.add_argument("--out", type=str, default="data/fewshot_calibration.json")
+    parser.add_argument("--out", type=str, default="data/results/fewshot_calibration.json")
     args = parser.parse_args()
 
     run(args.features_csv, args.depth, args.n_seeds, Path(args.out))

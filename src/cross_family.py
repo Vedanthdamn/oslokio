@@ -92,8 +92,8 @@ def main(features_csv: str, out_path: Path, n_seeds: int):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--features-csv", type=str, default="data/features.csv")
-    parser.add_argument("--out", type=str, default="data/cross_family.json")
+    parser.add_argument("--features-csv", type=str, default="data/results/features.csv")
+    parser.add_argument("--out", type=str, default="data/results/cross_family.json")
     parser.add_argument("--n-seeds", type=int, default=10)
     args = parser.parse_args()
     main(args.features_csv, Path(args.out), args.n_seeds)

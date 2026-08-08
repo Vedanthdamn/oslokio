@@ -46,7 +46,7 @@ def build_feature_matrix(models_dir: Path, extractor: str = "absolute") -> pd.Da
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--models-dir", type=str, default="data/models")
-    parser.add_argument("--out", type=str, default="data/features.csv")
+    parser.add_argument("--out", type=str, default="data/results/features.csv")
     parser.add_argument("--extractor", choices=sorted(EXTRACTORS), default="absolute")
     args = parser.parse_args()
 

@@ -80,8 +80,8 @@ def main(features_csv: str, out_path: Path, n_seeds: int, top_k: int):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--features-csv", type=str, default="data/features.csv")
-    parser.add_argument("--out", type=str, default="data/feature_analysis.json")
+    parser.add_argument("--features-csv", type=str, default="data/results/features.csv")
+    parser.add_argument("--out", type=str, default="data/results/feature_analysis.json")
     parser.add_argument("--n-seeds", type=int, default=5)
     parser.add_argument("--top-k", type=int, default=15)
     args = parser.parse_args()

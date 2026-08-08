@@ -4,7 +4,7 @@
 set -euo pipefail
 
 PY=${PY:-.venv/bin/python}
-MODELS=${MODELS:-data/models_v2}
+MODELS=${MODELS:-data/models}
 OUT=${OUT:-data/results}
 SEEDS=${SEEDS:-10}
 

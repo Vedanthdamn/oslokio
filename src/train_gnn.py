@@ -131,14 +131,14 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--features-csv", type=str, default="data/features.csv")
+    parser.add_argument("--features-csv", type=str, default="data/results/features.csv")
     parser.add_argument("--models-dir", type=str, default="data/models")
     parser.add_argument("--axis", choices=["id", "arch", "family"], default="id")
     parser.add_argument("--held-out", type=str, default="4")
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--n-seeds", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=16)
-    parser.add_argument("--out", type=str, default="data/gnn_result.json")
+    parser.add_argument("--out", type=str, default="data/results/gnn_result.json")
     parser.add_argument("--device", type=str, default=None)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
